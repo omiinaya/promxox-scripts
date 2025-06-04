@@ -59,7 +59,7 @@ while read -r line; do
     MENU_OPTIONS+=("$TYPE_ID" "$DESC")
 done <<< "$ALL_GUESTS"
 
-SELECTED=$(whiptail --title "Select Guest" --menu "Choose a container or VM to change its ID:" 20 70 15 "${MENU_OPTIONS[@]}" 3>&1 1>&2 2>&3)
+SELECTED=$(whiptail --title "Select Container or Virtual Machine" --menu "Choose a container or virtual machine to change its ID:" 20 70 15 "${MENU_OPTIONS[@]}" 3>&1 1>&2 2>&3)
 if [ $? -ne 0 ]; then
     log "Menu cancelled."
     exit 1
@@ -111,10 +111,14 @@ elif [ "$GUEST_TYPE" = "vm" ]; then
         log "Error: Configuration file $CONFIG_FILE not found."
         exit 2
     fi
-    STORAGE=$(grep '^virtio0:' "$CONFIG_FILE" | awk -F: '{print $2}' | awk '{print $1}')
-    if [ -z "$STORAGE" ]; then
-        STORAGE=$(grep '^scsi0:' "$CONFIG_FILE" | awk -F: '{print $2}' | awk '{print $1}')
-    fi
+    # Try all common disk types for storage detection
+    STORAGE=""
+    for disk_type in virtio scsi sata ide; do
+        STORAGE=$(grep "^${disk_type}0:" "$CONFIG_FILE" | awk -F: '{print $2}' | awk '{print $1}')
+        if [ -n "$STORAGE" ]; then
+            break
+        fi
+    done
 fi
 
 if [ -z "$STORAGE" ]; then
